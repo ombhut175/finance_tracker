@@ -12,6 +12,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {handleError, postRequest} from "@/helpers/ui/handlers";
+import useSWRMutation from "swr/mutation";
+import {ApiRouteConstants} from "@/helpers/string_const";
+
+const addTransactionFetcher = async (url: string, {arg}: { arg: { transaction: Transaction } }) => {
+  return await postRequest(url, arg.transaction);
+}
 
 interface TransactionFormProps {
   onSubmit: (transaction: Transaction) => void
@@ -20,12 +27,22 @@ interface TransactionFormProps {
   categories: readonly string[]
 }
 
+const {
+  ADD_TRANSACTION
+} = ApiRouteConstants;
+
 export function TransactionForm({ onSubmit, initialData, onCancel, categories }: TransactionFormProps) {
   const [amount, setAmount] = useState("")
   const [date, setDate] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState<string>(categories[0])
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const {
+    trigger,
+      error,
+      isMutating,
+  } = useSWRMutation(ADD_TRANSACTION,addTransactionFetcher);
 
   useEffect(() => {
     if (initialData) {
@@ -59,28 +76,32 @@ export function TransactionForm({ onSubmit, initialData, onCancel, categories }:
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit =async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validate()) return
+    console.log("::: transaction form handle submit :::");
+
+    if (!validate()) return;
 
     const transaction: Transaction = {
-      id: initialData?.id || "",
       amount: Number(amount),
       date,
       description,
       category,
     }
 
-    onSubmit(transaction)
+    try {
+      await trigger({transaction});
+      onSubmit(transaction)
 
-    if (!initialData) {
-      // Clear form if adding new transaction
-      setAmount("")
-      setDate("")
-      setDescription("")
-      setErrors({})
-      // Keep the category selected for convenience
+      if (!initialData) {
+        setAmount("")
+        setDate("")
+        setDescription("")
+        setErrors({})
+      }
+    }catch (error) {
+      handleError(error);
     }
   }
 

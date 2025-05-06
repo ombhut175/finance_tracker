@@ -81,7 +81,7 @@ export function TransactionList({
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onDelete(transaction.id)}
+                            onClick={() => onDelete(transaction.id!)}
                             aria-label="Delete transaction"
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
