@@ -13,6 +13,7 @@ import { DashboardSummary } from "@/components/dashboard-summary"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CATEGORIES, type Transaction, type Budget } from "@/lib/types"
 import { generateInsights } from "@/lib/insights"
+import { Loader2, LineChart, DollarSign, BarChart4 } from 'lucide-react'
 
 export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -29,7 +30,12 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(()=>{
-    setIsLoading(false);
+    // Simulate loading for at least 800ms for better UX
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800);
+    
+    return () => clearTimeout(timer);
   },[]);
 
   // Filter transactions for the selected month
@@ -133,7 +139,38 @@ export default function Home() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4 max-w-md text-center">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <DollarSign className="h-6 w-6 text-primary absolute inset-0 m-auto" />
+          </div>
+          
+          <h1 className="text-2xl font-bold mt-6">Finance Tracker</h1>
+          <p className="text-muted-foreground">Loading your financial dashboard...</p>
+          
+          <div className="w-64 h-2 bg-muted rounded-full mt-4 overflow-hidden">
+            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '70%' }} />
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4 mt-4">
+            <div className="flex flex-col items-center p-3 bg-card rounded-lg shadow-sm">
+              <LineChart className="h-6 w-6 text-primary mb-2" />
+              <span className="text-xs text-muted-foreground">Transactions</span>
+            </div>
+            <div className="flex flex-col items-center p-3 bg-card rounded-lg shadow-sm">
+              <BarChart4 className="h-6 w-6 text-primary mb-2" />
+              <span className="text-xs text-muted-foreground">Analytics</span>
+            </div>
+            <div className="flex flex-col items-center p-3 bg-card rounded-lg shadow-sm">
+              <DollarSign className="h-6 w-6 text-primary mb-2" />
+              <span className="text-xs text-muted-foreground">Budgets</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -141,8 +178,6 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-8 text-center">Personal Finance Visualizer</h1>
 
       <DashboardSummary
-        transactions={filteredTransactions}
-        budgets={currentMonthBudgets}
         selectedMonth={selectedMonth}
         onMonthChange={handleMonthChange}
       />
@@ -196,7 +231,6 @@ export default function Home() {
             <div className="lg:col-span-2">
               <h2 className="text-xl font-semibold mb-4">Budget Overview</h2>
               <BudgetList
-                transactions={filteredTransactions}
                 onEdit={handleEditBudget}
                 onDelete={handleDeleteBudget}
                 selectedMonth={selectedMonth}
@@ -210,16 +244,16 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-8">
             <div>
               <h2 className="text-xl font-semibold mb-4">Budget vs. Actual</h2>
-              <BudgetComparisonChart budgets={currentMonthBudgets} transactions={filteredTransactions} />
+              <BudgetComparisonChart />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <h2 className="text-xl font-semibold mb-4">Monthly Expenses</h2>
-                <ExpensesChart transactions={transactions} />
+                <ExpensesChart />
               </div>
               <div>
                 <h2 className="text-xl font-semibold mb-4">Expenses by Category</h2>
-                <CategoryChart transactions={filteredTransactions} />
+                <CategoryChart />
               </div>
             </div>
           </div>
@@ -228,7 +262,7 @@ export default function Home() {
         <TabsContent value="insights" className="mt-4">
           <div>
             <h2 className="text-xl font-semibold mb-4">Spending Insights</h2>
-            <SpendingInsights insights={insights} />
+            <SpendingInsights />
           </div>
         </TabsContent>
       </Tabs>
