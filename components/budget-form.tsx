@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MonthPicker } from "@/components/month-picker"
 import { ApiRouteConstants, BudgetConstants } from "@/helpers/string_const"
 import { useSWRConfig } from "swr"
-import { postRequest } from "@/helpers/ui/handlers"
+import { postRequest, patchRequest, handleError } from "@/helpers/ui/handlers"
 import useSWRMutation from "swr/mutation"
 
 interface BudgetFormProps {
@@ -39,10 +39,17 @@ export function BudgetForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { mutate } = useSWRConfig()
 
-  const { trigger, isMutating } = useSWRMutation(
+  const { trigger: addBudget, isMutating: isAdding } = useSWRMutation(
     ApiRouteConstants.ADD_BUDGET,
     async (url, { arg }: { arg: any }) => {
       return postRequest(url, arg)
+    }
+  )
+
+  const { trigger: editBudget, isMutating: isEditing } = useSWRMutation(
+    ApiRouteConstants.EDIT_BUDGET,
+    async (url, { arg }: { arg: any }) => {
+      return patchRequest(url, arg)
     }
   )
 
@@ -85,19 +92,39 @@ export function BudgetForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    console.log("::: handle submit :::");
+
     if (!validate()) return
 
     try {
-      const data = {
+      const budgetData = {
         [BudgetConstants.AMOUNT]: Number(amount),
         [BudgetConstants.CATEGORY]: category,
         [BudgetConstants.MONTH]: month,
       }
+      console.log("::: budget data :::", budgetData);
 
-      await trigger(data)
+      console.log("::: initial data :::", initialData);
+
+      console.log(initialData?._id);
+      
+      
+      if (initialData?._id) {
+        // For editing, include the ID in the request
+        const editData = {
+          id: initialData._id,
+          ...budgetData
+        }
+        console.log("Editing budget with data:", editData)
+        await editBudget(editData)
+      } else {
+        // For adding new budget
+        console.log("Adding new budget with data:", budgetData)
+        await addBudget(budgetData)
+      }
 
       onSubmit({
-        id: initialData?.id || "",
+        _id: initialData?._id || "",
         amount: Number(amount),
         category,
         month,
@@ -110,13 +137,16 @@ export function BudgetForm({
         setAmount("")
       }
     } catch (error) {
-      console.error("Error adding budget:", error)
+      console.error("Error saving budget:", error)
+      handleError(error)
     }
   }
 
   const handleMonthChange = (newMonth: string) => {
     setMonth(newMonth)
   }
+
+  const isMutating = isAdding || isEditing
 
   return (
     <Card>

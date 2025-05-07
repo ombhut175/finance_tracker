@@ -65,21 +65,21 @@ export default function Home() {
     if (existingIndex >= 0) {
       // Update existing budget
       const updatedBudgets = [...budgets]
-      updatedBudgets[existingIndex] = { ...budget, id: budgets[existingIndex].id }
+      updatedBudgets[existingIndex] = { ...budget, _id: budgets[existingIndex]._id }
       setBudgets(updatedBudgets)
     } else {
       // Add new budget
-      setBudgets([...budgets, { ...budget, id: Date.now().toString() }])
+      setBudgets([...budgets, { ...budget, _id: Date.now().toString() }])
     }
   }
 
   const updateBudget = (updatedBudget: Budget) => {
-    setBudgets(budgets.map((b) => (b.id === updatedBudget.id ? updatedBudget : b)))
+    setBudgets(budgets.map((b) => (b._id === updatedBudget._id ? updatedBudget : b)))
     setEditingBudget(null)
   }
 
   const deleteBudget = (id: string) => {
-    setBudgets(budgets.filter((b) => b.id !== id))
+    setBudgets(budgets.filter((b) => b._id !== id))
   }
 
   const startEditingBudget = (budget: Budget) => {

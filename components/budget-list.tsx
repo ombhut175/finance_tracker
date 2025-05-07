@@ -8,9 +8,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { ApiRouteConstants } from "@/helpers/string_const"
-import { getRequest } from "@/helpers/ui/handlers"
+import { ApiRouteConstants, Constants } from "@/helpers/string_const"
+import { getRequest, deleteRequest, handleError } from "@/helpers/ui/handlers"
 import useSWR from "swr"
+import useSWRMutation from "swr/mutation"
+import { toast } from "sonner"
 
 interface BudgetListProps {
   transactions: Transaction[]
@@ -19,13 +21,33 @@ interface BudgetListProps {
 }
 
 export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     ApiRouteConstants.GET_BUDGET,
     async (url) => {
       const response = await getRequest(url)
       return response.body as Budget[]
     }
   )
+
+  const { trigger: deleteBudget, isMutating: isDeleting } = useSWRMutation(
+    ApiRouteConstants.DELETE_BUDGET,
+    async (url, { arg }: { arg: string }) => {
+      return deleteRequest(`${url}?${Constants.ID}=${arg}`)
+    }
+  )
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteBudget(id)
+      toast.success("Budget deleted successfully")
+      // Invalidate and revalidate budgets cache
+      await mutate()
+      onDelete(id)
+    } catch (error) {
+      console.error("Error deleting budget:", error)
+      handleError(error)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -83,7 +105,7 @@ export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) 
               const isOverBudget = spent > budget.amount
 
               return (
-                <TableRow key={budget.id}>
+                <TableRow key={budget._id}>
                   <TableCell>
                     <Badge variant="outline">{budget.category}</Badge>
                   </TableCell>
@@ -116,10 +138,15 @@ export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) 
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => budget.id && onDelete(budget.id)}
+                        onClick={() => budget._id && handleDelete(budget._id)}
+                        disabled={isDeleting}
                         aria-label="Delete budget"
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>

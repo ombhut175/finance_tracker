@@ -57,10 +57,11 @@ export async function PATCH(request: Request) {
             },
             { new: true }
         )
+    
 
         return responseSuccessfulWithData({
             message: "Budget updated successfully",
-            body: updatedBudget
+            body: updatedBudget || {}
         })
 
     } catch (error) {

@@ -185,3 +185,8 @@ export const getRequest = async (url: string) => {
 
     return handleResponse(response);
 }
+
+export const deleteRequest = async (url: string) => {
+    const response = await axiosInstance.delete(url, { withCredentials: true });
+    return handleResponse(response);
+};
