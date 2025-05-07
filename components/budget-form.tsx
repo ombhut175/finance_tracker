@@ -10,8 +10,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { MonthPicker } from "@/components/month-picker"
 import type { Budget } from "@/lib/types"
-import { handleError, postRequest, putRequest } from "@/helpers/ui/handlers"
+import { handleError, postRequest, patchRequest } from "@/helpers/ui/handlers"
 import { ApiRouteConstants } from "@/helpers/string_const"
+import { mutate } from "swr"
+import { toast } from "sonner"
 
 interface BudgetFormProps {
   onSubmit: (budget: Budget) => void
@@ -74,14 +76,37 @@ export function BudgetForm({
       }
 
       if (initialData) {
-        await putRequest(
-          `${ApiRouteConstants.EDIT_BUDGET}?id=${initialData._id}`, 
-          budgetData
+        await patchRequest(
+          ApiRouteConstants.EDIT_BUDGET, 
+          { ...budgetData, _id: initialData._id }
         )
+        
+        // Global data revalidation
+        await mutate(ApiRouteConstants.GET_BUDGET)
+        
+        // Show success message
+        toast.success("Budget updated successfully")
+        
+        // Call onSubmit to update parent state
         onSubmit({ ...budgetData, _id: initialData._id })
+        
+        // Reset form back to initial state for the updated category
+        resetForm()
+        onCancel()
       } else {
         const response = await postRequest(ApiRouteConstants.ADD_BUDGET, budgetData)
+        
+        // Global data revalidation
+        await mutate(ApiRouteConstants.GET_BUDGET)
+        
+        // Show success message
+        toast.success("Budget added successfully")
+        
+        // Call onSubmit to update parent state
         onSubmit({ ...budgetData, _id: response.body._id })
+        
+        // Reset form for new additions
+        resetForm()
       }
     } catch (error) {
       console.error("Error submitting budget:", error)
@@ -89,6 +114,14 @@ export function BudgetForm({
     } finally {
       setIsMutating(false)
     }
+  }
+
+  // Helper function to reset form fields
+  const resetForm = () => {
+    setCategory(categories[0] || "")
+    setAmount("")
+    setMonth(selectedMonth)
+    setErrors({})
   }
 
   return (

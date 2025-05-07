@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
         const body = await request.json()
 
         // Validate required fields
-        if (!body.id) {
+        if (!body._id) {
             return responseBadRequest("Budget ID is required")
         }
 
@@ -31,14 +31,14 @@ export async function PATCH(request: Request) {
         }
 
         // Find the budget to update
-        const existingBudget = await Budget.findById(body.id)
+        const existingBudget = await Budget.findById(body._id)
         if (!existingBudget) {
             return responseNotFound("Budget not found")
         }
 
         // Check if another budget exists for the same category and month
         const duplicateBudget = await Budget.findOne({
-            _id: { $ne: body.id }, // Exclude current budget
+            _id: { $ne: body._id }, // Exclude current budget
             [BudgetConstants.CATEGORY]: body[BudgetConstants.CATEGORY],
             [BudgetConstants.MONTH]: body[BudgetConstants.MONTH]
         })
@@ -49,7 +49,7 @@ export async function PATCH(request: Request) {
 
         // Update the budget
         const updatedBudget = await Budget.findByIdAndUpdate(
-            body.id,
+            body._id,
             {
                 [BudgetConstants.AMOUNT]: body[BudgetConstants.AMOUNT],
                 [BudgetConstants.CATEGORY]: body[BudgetConstants.CATEGORY],
