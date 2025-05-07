@@ -143,15 +143,33 @@ export function ExpensesChart() {
             <Bar 
               dataKey="amount" 
               name="expenses" 
-              fill="hsl(210, 100%, 60%)" 
+              fill="#3b82f6" 
               radius={[4, 4, 0, 0]} 
               barSize={responsiveSettings.barSize}
+              activeBar={{ fill: "#3b82f6" }}
             />
             <Tooltip 
               formatter={(value) => formatCurrency(Number(value))}
               labelFormatter={(label) => {
                 const [year, month] = label.split("-")
                 return `Month: ${month}/${year}`
+              }}
+              cursor={false}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '4px',
+                color: '#1e293b',
+                padding: '8px 12px',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              itemStyle={{
+                color: '#1e293b'
+              }}
+              labelStyle={{
+                color: '#64748b',
+                fontWeight: 'bold',
+                marginBottom: '4px'
               }}
             />
           </BarChart>

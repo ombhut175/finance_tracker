@@ -29,6 +29,63 @@ const fetcher = async (url: string) => {
   }
 }
 
+// Define a type for the pie chart props
+interface PieChartProps {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  startAngle?: number;
+  endAngle?: number;
+  fill?: string;
+  payload?: any;
+  percent?: number;
+  value?: number;
+  name?: string;
+  arc?: string;
+}
+
+// Define the custom tooltip component
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) {
+    return null;
+  }
+
+  const value = payload[0].value;
+  const formattedValue = formatCurrency(Number(value));
+
+  return (
+    <div
+      className="custom-tooltip"
+      style={{
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        border: '1px solid #e2e8f0',
+        borderRadius: '4px',
+        padding: '8px 12px',
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+        color: '#1e293b',
+        zIndex: 10,
+      }}
+    >
+      <p className="tooltip-label" style={{ 
+        color: '#64748b',
+        fontWeight: 'bold',
+        marginBottom: '4px',
+        margin: 0
+      }}>
+        Category: {label}
+      </p>
+      <p className="tooltip-value" style={{ 
+        color: '#1e293b',
+        margin: 0
+      }}>
+        {formattedValue}
+      </p>
+    </div>
+  );
+};
+
 export function CategoryChart() {
   const chartRef = useRef<HTMLDivElement>(null)
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 0 })
@@ -184,18 +241,7 @@ export function CategoryChart() {
   console.log("Rendering chart with data:", chartData)
   
   // Define professional colors for a more refined look
-  const PROFESSIONAL_COLORS = [
-    "#3366CC", // Blue
-    "#DC3912", // Red
-    "#FF9900", // Orange
-    "#109618", // Green
-    "#990099", // Purple
-    "#0099C6", // Teal
-    "#DD4477", // Pink
-    "#66AA00", // Lime
-    "#B82E2E", // Dark Red
-    "#316395", // Dark Blue
-  ];
+  const PROFESSIONAL_COLORS = Object.values(CATEGORY_COLORS);
 
   // Responsive settings
   const getResponsiveSettings = () => {
@@ -203,27 +249,29 @@ export function CategoryChart() {
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024
     
     return {
-      labelEnabled: !isMobile,
-      outerRadius: isMobile ? '60%' : isTablet ? '70%' : '80%',
-      innerRadius: isMobile ? '30%' : isTablet ? '40%' : '50%',
+      labelEnabled: false, // Disable labels on pie to avoid clutter
+      outerRadius: isMobile ? '60%' : isTablet ? '70%' : '70%', // Slightly smaller chart to give space for legend
+      innerRadius: isMobile ? '30%' : isTablet ? '40%' : '45%',
       legendPosition: isMobile ? 'bottom' : 'right',
-      fontSize: isMobile ? 10 : 12
+      fontSize: isMobile ? 10 : 12,
+      chartHeight: isMobile ? 350 : 400
     }
   }
 
   const responsiveSettings = typeof window !== 'undefined' ? getResponsiveSettings() : {
-    labelEnabled: true,
-    outerRadius: '80%',
-    innerRadius: '50%',
+    labelEnabled: false,
+    outerRadius: '70%',
+    innerRadius: '45%',
     legendPosition: 'right',
-    fontSize: 12
+    fontSize: 12,
+    chartHeight: 400
   }
 
   return (
     <Card className="p-4">
       <h3 className="text-lg font-medium mb-4">Spending by Category</h3>
       
-      <div ref={chartRef} className="w-full h-[400px]">
+      <div ref={chartRef} className={`w-full h-[${responsiveSettings.chartHeight}px]`}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -237,26 +285,36 @@ export function CategoryChart() {
               dataKey="value"
               nameKey="name"
               label={responsiveSettings.labelEnabled ? 
-                ({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)` : 
+                ({ name, percent }) => `${(percent * 100).toFixed(0)}%` : 
                 false
               }
-              paddingAngle={2}
+              paddingAngle={3}
             >
               {chartData.map((entry, index) => (
                 <Cell 
                   key={index} 
                   fill={PROFESSIONAL_COLORS[index % PROFESSIONAL_COLORS.length]} 
                   stroke="#ffffff"
-                  strokeWidth={2}
+                  strokeWidth={0}
                 />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+            <Tooltip 
+              content={<CustomTooltip />}
+              cursor={false}
+              wrapperStyle={{ zIndex: 100, pointerEvents: 'auto' }}
+            />
             <Legend
               layout={responsiveSettings.legendPosition === 'bottom' ? 'horizontal' : 'vertical'}
               verticalAlign={responsiveSettings.legendPosition === 'bottom' ? 'bottom' : 'middle'}
               align={responsiveSettings.legendPosition === 'bottom' ? 'center' : 'right'}
-              fontSize={responsiveSettings.fontSize}
+              iconSize={10}
+              wrapperStyle={{
+                paddingLeft: responsiveSettings.legendPosition === 'right' ? '20px' : '0px',
+                fontSize: responsiveSettings.fontSize,
+                lineHeight: '1.5em'
+              }}
+              formatter={(value) => <span style={{ color: '#e2e8f0' }}>{value}</span>}
             />
           </PieChart>
         </ResponsiveContainer>

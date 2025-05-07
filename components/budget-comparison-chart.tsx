@@ -176,18 +176,35 @@ export function BudgetComparisonChart() {
             <Tooltip 
               formatter={(value) => formatCurrency(Number(value))}
               labelFormatter={(label) => `Category: ${label}`}
+              cursor={false}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '4px',
+                color: '#1e293b',
+                padding: '8px 12px',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              itemStyle={{
+                color: '#1e293b'
+              }}
+              labelStyle={{
+                color: '#64748b',
+                fontWeight: 'bold',
+                marginBottom: '4px'
+              }}
             />
             <Bar 
               dataKey="budget" 
               name="Budget" 
-              fill="hsl(120, 100%, 50%)"
+              fill="#4ade80"
               radius={[4, 4, 0, 0]} 
               barSize={responsiveSettings.barSize}
             />
             <Bar 
               dataKey="spent" 
               name="Spent" 
-              fill="hsl(0, 100%, 60%)"
+              fill="#ef4444"
               radius={[4, 4, 0, 0]} 
               barSize={responsiveSettings.barSize}
             />
