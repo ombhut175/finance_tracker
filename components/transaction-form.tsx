@@ -116,12 +116,12 @@ export function TransactionForm({ onSubmit, initialData, onCancel, categories }:
       await mutate("/api/get-transaction")
       onSubmit(transaction)
 
-      if (!initialData) {
-        setAmount("")
-        setDate("")
-        setDescription("")
-        setErrors({})
-      }
+      // Reset form fields in all cases, not just for new transactions
+      setAmount("")
+      setDate("")
+      setDescription("")
+      setCategory(categories[0])
+      setErrors({})
     }catch (error) {
       console.error("Transaction submission error:", error)
       setSubmitError(error instanceof Error ? error.message : "Failed to save transaction. Please try again.")
