@@ -1,26 +1,23 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import type { Budget } from "@/lib/types"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { AlertCircle, Loader2 } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, Loader2 } from "lucide-react"
 import { MonthPicker } from "@/components/month-picker"
-import { ApiRouteConstants, BudgetConstants } from "@/helpers/string_const"
-import { useSWRConfig } from "swr"
-import { postRequest, patchRequest, handleError } from "@/helpers/ui/handlers"
-import useSWRMutation from "swr/mutation"
+import type { Budget } from "@/lib/types"
+import { postRequest, putRequest } from "@/helpers/ui/handlers"
+import { ApiRouteConstants } from "@/helpers/string_const"
 
 interface BudgetFormProps {
   onSubmit: (budget: Budget) => void
   initialData?: Budget | null
-  onCancel?: () => void
-  categories: readonly string[]
+  onCancel: () => void
+  categories: string[]
   selectedMonth: string
   onMonthChange: (month: string) => void
 }
@@ -33,57 +30,30 @@ export function BudgetForm({
   selectedMonth,
   onMonthChange,
 }: BudgetFormProps) {
-  const [amount, setAmount] = useState("")
-  const [category, setCategory] = useState<string>(categories[0])
-  const [month, setMonth] = useState(selectedMonth)
+  const [category, setCategory] = useState(initialData?.category || "")
+  const [amount, setAmount] = useState<string>(initialData?.amount?.toString() || "")
+  const [month, setMonth] = useState(initialData?.month || selectedMonth)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const { mutate } = useSWRConfig()
-
-  const { trigger: addBudget, isMutating: isAdding } = useSWRMutation(
-    ApiRouteConstants.ADD_BUDGET,
-    async (url, { arg }: { arg: any }) => {
-      return postRequest(url, arg)
-    }
-  )
-
-  const { trigger: editBudget, isMutating: isEditing } = useSWRMutation(
-    ApiRouteConstants.EDIT_BUDGET,
-    async (url, { arg }: { arg: any }) => {
-      return patchRequest(url, arg)
-    }
-  )
+  const [isMutating, setIsMutating] = useState(false)
 
   useEffect(() => {
-    if (initialData) {
-      setAmount(initialData.amount.toString())
-      setCategory(initialData.category)
-      setMonth(initialData.month)
-    } else {
+    if (!initialData) {
       setMonth(selectedMonth)
     }
-  }, [initialData, selectedMonth])
+  }, [selectedMonth, initialData])
 
-  // Update the parent's selected month when this component changes it
-  useEffect(() => {
-    if (month !== selectedMonth) {
-      onMonthChange(month)
-    }
-  }, [month, selectedMonth, onMonthChange])
+  const handleMonthChange = (value: string) => {
+    setMonth(value)
+    onMonthChange(value)
+  }
 
   const validate = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      newErrors.amount = "Please enter a valid positive amount"
-    }
-
-    if (!category) {
-      newErrors.category = "Please select a category"
-    }
-
-    if (!month) {
-      newErrors.month = "Please select a month"
-    }
+    if (!category) newErrors.category = "Category is required"
+    if (!amount) newErrors.amount = "Amount is required"
+    if (amount && parseFloat(amount) <= 0) newErrors.amount = "Amount must be greater than 0"
+    if (!month) newErrors.month = "Month is required"
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -92,71 +62,43 @@ export function BudgetForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    console.log("::: handle submit :::");
-
     if (!validate()) return
+
+    setIsMutating(true)
 
     try {
       const budgetData = {
-        [BudgetConstants.AMOUNT]: Number(amount),
-        [BudgetConstants.CATEGORY]: category,
-        [BudgetConstants.MONTH]: month,
-      }
-      console.log("::: budget data :::", budgetData);
-
-      console.log("::: initial data :::", initialData);
-
-      console.log(initialData?._id);
-      
-      
-      if (initialData?._id) {
-        // For editing, include the ID in the request
-        const editData = {
-          id: initialData._id,
-          ...budgetData
-        }
-        console.log("Editing budget with data:", editData)
-        await editBudget(editData)
-      } else {
-        // For adding new budget
-        console.log("Adding new budget with data:", budgetData)
-        await addBudget(budgetData)
-      }
-
-      onSubmit({
-        _id: initialData?._id || "",
-        amount: Number(amount),
         category,
+        amount: parseFloat(amount),
         month,
-      })
+      }
 
-      // Invalidate and revalidate budgets cache
-      await mutate(ApiRouteConstants.GET_BUDGET)
-
-      if (!initialData) {
-        setAmount("")
+      if (initialData) {
+        await putRequest(
+          `${ApiRouteConstants.EDIT_BUDGET}?id=${initialData._id}`, 
+          budgetData
+        )
+        onSubmit({ ...budgetData, _id: initialData._id })
+      } else {
+        const response = await postRequest(ApiRouteConstants.ADD_BUDGET, budgetData)
+        onSubmit({ ...budgetData, _id: response.body._id })
       }
     } catch (error) {
-      console.error("Error saving budget:", error)
-      handleError(error)
+      console.error("Error submitting budget:", error)
+    } finally {
+      setIsMutating(false)
     }
   }
 
-  const handleMonthChange = (newMonth: string) => {
-    setMonth(newMonth)
-  }
-
-  const isMutating = isAdding || isEditing
-
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:shadow-md">
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="month">Month</Label>
             <MonthPicker value={month} onChange={handleMonthChange} />
             {errors.month && (
-              <Alert variant="destructive" className="py-2">
+              <Alert variant="destructive" className="py-2 animate-fadeIn">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{errors.month}</AlertDescription>
               </Alert>
@@ -166,19 +108,21 @@ export function BudgetForm({
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className={errors.category ? "border-red-500" : ""}>
+              <SelectTrigger 
+                className={`transition-all duration-200 focus:scale-[1.01] ${errors.category ? "border-red-500" : ""}`}
+              >
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
+                  <SelectItem key={cat} value={cat} className="cursor-pointer transition-colors hover:bg-accent">
                     {cat}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {errors.category && (
-              <Alert variant="destructive" className="py-2">
+              <Alert variant="destructive" className="py-2 animate-fadeIn">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{errors.category}</AlertDescription>
               </Alert>
@@ -187,25 +131,43 @@ export function BudgetForm({
 
           <div className="space-y-2">
             <Label htmlFor="amount">Budget Amount ($)</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className={errors.amount ? "border-red-500" : ""}
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className={`pl-8 transition-all duration-200 focus:scale-[1.01] ${errors.amount ? "border-red-500" : ""}`}
+              />
+            </div>
             {errors.amount && (
-              <Alert variant="destructive" className="py-2">
+              <Alert variant="destructive" className="py-2 animate-fadeIn">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{errors.amount}</AlertDescription>
               </Alert>
             )}
           </div>
 
-          <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={isMutating}>
+          <div className="flex justify-end space-x-2 pt-4">
+            {initialData && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isMutating}
+                className="transition-colors duration-200 hover:bg-destructive/10 hover:text-destructive"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button 
+              type="submit" 
+              disabled={isMutating}
+              className="relative overflow-hidden group"
+            >
               {isMutating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -214,15 +176,12 @@ export function BudgetForm({
               ) : (
                 `${initialData ? "Update" : "Set"} Budget`
               )}
+              <span className="absolute inset-0 w-full h-full bg-white/10 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></span>
             </Button>
-            {initialData && (
-              <Button type="button" variant="outline" onClick={onCancel} disabled={isMutating}>
-                Cancel
-              </Button>
-            )}
           </div>
         </form>
       </CardContent>
     </Card>
   )
 }
+
