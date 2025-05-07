@@ -57,7 +57,7 @@ export function TransactionList({
     
     try {
       setDeletingId(id);
-      await deleteRequest(`${ApiRouteConstants.DELETE_TRANSACTION}?id=${id}`);
+      await deleteRequest(`${ApiRouteConstants.DELETE_TRANSACTION}?_id=${id}`);
       await mutate();
       onDelete(id);
     } catch (error) {
