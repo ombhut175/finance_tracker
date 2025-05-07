@@ -18,7 +18,7 @@ const TransactionSchema: Schema<TransactionInterface> = new mongoose.Schema({
 });
 
 const TransactionModel =
-    (mongoose.models.MatrimonyUsers as mongoose.Model<TransactionInterface>) ||
+    (mongoose.models.Transactions as mongoose.Model<TransactionInterface>) ||
     mongoose.model<TransactionInterface>('Transactions', TransactionSchema);
 
 export default TransactionModel;
