@@ -7,26 +7,63 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { MonthPicker } from "@/components/month-picker"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
+import useSWR from "swr"
+import { getRequest } from "@/helpers/ui/handlers"
+import { ApiRouteConstants } from "@/helpers/string_const"
 
 interface DashboardSummaryProps {
-  transactions: Transaction[]
-  budgets: Budget[]
   selectedMonth: string
   onMonthChange: (month: string) => void
 }
 
-export function DashboardSummary({ transactions, budgets, selectedMonth, onMonthChange }: DashboardSummaryProps) {
+interface ApiResponse {
+  success: boolean
+  message: string
+  body: Transaction[] | Budget[]
+}
+
+export function DashboardSummary({ selectedMonth, onMonthChange }: DashboardSummaryProps) {
+  // Fetch transactions
+  const { data: transactionsData, error: transactionsError, isLoading: isLoadingTransactions } = useSWR<ApiResponse>(
+    ApiRouteConstants.GET_TRANSACTION,
+    async (url: string) => {
+      const response = await getRequest(url)
+      return response
+    }
+  )
+
+  // Fetch budgets
+  const { data: budgetsData, error: budgetsError, isLoading: isLoadingBudgets } = useSWR<ApiResponse>(
+    ApiRouteConstants.GET_BUDGET,
+    async (url: string) => {
+      const response = await getRequest(url)
+      return response
+    }
+  )
+
   const summary = useMemo(() => {
+    const transactions = transactionsData?.body as Transaction[] || []
+    const budgets = budgetsData?.body as Budget[] || []
+
+    // Filter transactions for the selected month
+    const filteredTransactions = transactions.filter((t) => {
+      const transactionMonth = new Date(t.date).toISOString().substring(0, 7) // YYYY-MM
+      return transactionMonth === selectedMonth
+    })
+
+    // Filter budgets for the selected month
+    const filteredBudgets = budgets.filter((b) => b.month === selectedMonth)
+
     // Calculate total expenses
-    const totalExpenses = transactions.reduce((sum, transaction) => sum + transaction.amount, 0)
+    const totalExpenses = filteredTransactions.reduce((sum, transaction) => sum + transaction.amount, 0)
 
     // Calculate total budget
-    const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0)
+    const totalBudget = filteredBudgets.reduce((sum, budget) => sum + budget.amount, 0)
 
     // Get category breakdown
     const categoryBreakdown: Record<string, number> = {}
-    transactions.forEach((transaction) => {
+    filteredTransactions.forEach((transaction) => {
       const category = transaction.category || "Other"
       categoryBreakdown[category] = (categoryBreakdown[category] || 0) + transaction.amount
     })
@@ -37,7 +74,7 @@ export function DashboardSummary({ transactions, budgets, selectedMonth, onMonth
       .slice(0, 3) // Top 3 categories
 
     // Get most recent transactions
-    const recentTransactions = [...transactions]
+    const recentTransactions = [...filteredTransactions]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 3) // Top 3 recent transactions
 
@@ -53,7 +90,26 @@ export function DashboardSummary({ transactions, budgets, selectedMonth, onMonth
       sortedCategories,
       recentTransactions,
     }
-  }, [transactions, budgets])
+  }, [transactionsData, budgetsData, selectedMonth])
+
+  const isLoading = isLoadingTransactions || isLoadingBudgets
+  const hasError = transactionsError || budgetsError
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (hasError) {
+    return (
+      <div className="text-center text-red-500">
+        Failed to load dashboard data. Please try again later.
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -96,7 +152,7 @@ export function DashboardSummary({ transactions, budgets, selectedMonth, onMonth
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(summary.totalExpenses)}</div>
             <p className="text-xs text-muted-foreground">
-              {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
+              {(transactionsData?.body as Transaction[] || []).length} transaction{(transactionsData?.body as Transaction[] || []).length !== 1 ? "s" : ""}
             </p>
           </CardContent>
         </Card>
@@ -133,7 +189,7 @@ export function DashboardSummary({ transactions, budgets, selectedMonth, onMonth
             {summary.recentTransactions.length > 0 ? (
               <div className="space-y-3">
                 {summary.recentTransactions.map((transaction) => (
-                  <div key={transaction.id} className="flex flex-col">
+                  <div key={transaction._id} className="flex flex-col">
                     <div className="flex justify-between">
                       <span className="font-medium truncate max-w-[150px]">{transaction.description}</span>
                       <span>{formatCurrency(transaction.amount)}</span>

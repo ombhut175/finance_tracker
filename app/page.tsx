@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { TransactionForm } from "@/components/transaction-form"
 import { TransactionList } from "@/components/transaction-list"
 import { ExpensesChart } from "@/components/expenses-chart"
@@ -19,10 +19,18 @@ export default function Home() {
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+  const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    return `${year}-${month}`
   })
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(()=>{
+    setIsLoading(false);
+  },[]);
 
   // Filter transactions for the selected month
   const filteredTransactions = useMemo(() => {
@@ -38,16 +46,16 @@ export default function Home() {
   }, [filteredTransactions, budgets, selectedMonth])
 
   const addTransaction = (transaction: Transaction) => {
-    setTransactions([...transactions, { ...transaction, id: Date.now().toString() }])
+    setTransactions([...transactions, { ...transaction }])
   }
 
   const updateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(transactions.map((t) => (t.id === updatedTransaction.id ? updatedTransaction : t)))
+    setTransactions(transactions.map((t) => (t._id === updatedTransaction._id ? updatedTransaction : t)))
     setEditingTransaction(null)
   }
 
   const deleteTransaction = (id: string) => {
-    setTransactions(transactions.filter((t) => t.id !== id))
+    setTransactions(transactions.filter((t) => t._id !== id))
   }
 
   const startEditingTransaction = (transaction: Transaction) => {
@@ -95,6 +103,39 @@ export default function Home() {
     return budgets.filter((b) => b.month === selectedMonth)
   }, [budgets, selectedMonth])
 
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction)
+  }
+
+  const handleEditBudget = (budget: Budget) => {
+    setEditingBudget(budget)
+  }
+
+  const handleDeleteTransaction = (id: string) => {
+    setEditingTransaction(null)
+  }
+
+  const handleDeleteBudget = (id: string) => {
+    setEditingBudget(null)
+  }
+
+  const handleTransactionSubmit = (transaction: Transaction) => {
+    setEditingTransaction(null)
+  }
+
+  const handleBudgetSubmit = (budget: Budget) => {
+    setEditingBudget(null)
+  }
+
+  const handleMonthChange = (month: string) => {
+    console.log("Month changed to:", month) // Debug log
+    setSelectedMonth(month)
+  }
+
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
+
   return (
     <main className="container mx-auto p-4 max-w-6xl">
       <h1 className="text-3xl font-bold mb-8 text-center">Personal Finance Visualizer</h1>
@@ -103,7 +144,7 @@ export default function Home() {
         transactions={filteredTransactions}
         budgets={currentMonthBudgets}
         selectedMonth={selectedMonth}
-        onMonthChange={setSelectedMonth}
+        onMonthChange={handleMonthChange}
       />
 
       <Tabs defaultValue="transactions" className="mt-8">
@@ -121,7 +162,7 @@ export default function Home() {
                 {editingTransaction ? "Edit Transaction" : "Add Transaction"}
               </h2>
               <TransactionForm
-                onSubmit={editingTransaction ? updateTransaction : addTransaction}
+                onSubmit={handleTransactionSubmit}
                 initialData={editingTransaction}
                 onCancel={cancelEditingTransaction}
                 categories={CATEGORIES}
@@ -130,11 +171,10 @@ export default function Home() {
             <div className="lg:col-span-2">
               <h2 className="text-xl font-semibold mb-4">Transaction History</h2>
               <TransactionList
-                transactions={transactions}
-                onEdit={startEditingTransaction}
-                onDelete={deleteTransaction}
+                onEdit={handleEditTransaction}
+                onDelete={handleDeleteTransaction}
                 selectedMonth={selectedMonth}
-                onMonthChange={setSelectedMonth}
+                onMonthChange={handleMonthChange}
               />
             </div>
           </div>
@@ -145,21 +185,22 @@ export default function Home() {
             <div className="lg:col-span-1">
               <h2 className="text-xl font-semibold mb-4">{editingBudget ? "Edit Budget" : "Set Budget"}</h2>
               <BudgetForm
-                onSubmit={editingBudget ? updateBudget : addBudget}
+                onSubmit={handleBudgetSubmit}
                 initialData={editingBudget}
                 onCancel={cancelEditingBudget}
                 categories={CATEGORIES}
                 selectedMonth={selectedMonth}
-                onMonthChange={setSelectedMonth}
+                onMonthChange={handleMonthChange}
               />
             </div>
             <div className="lg:col-span-2">
               <h2 className="text-xl font-semibold mb-4">Budget Overview</h2>
               <BudgetList
-                budgets={currentMonthBudgets}
                 transactions={filteredTransactions}
-                onEdit={startEditingBudget}
-                onDelete={deleteBudget}
+                onEdit={handleEditBudget}
+                onDelete={handleDeleteBudget}
+                selectedMonth={selectedMonth}
+                onMonthChange={handleMonthChange}
               />
             </div>
           </div>

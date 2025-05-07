@@ -15,23 +15,46 @@ import useSWRMutation from "swr/mutation"
 import { toast } from "sonner"
 
 interface BudgetListProps {
-  transactions: Transaction[]
   onEdit: (budget: Budget) => void
   onDelete: (id: string) => void
+  selectedMonth: string
+  onMonthChange: (month: string) => void
 }
 
-export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) {
-  const { data, error, isLoading, mutate } = useSWR(
+interface ApiResponse {
+  success: boolean
+  message: string
+  body: Budget[]
+}
+
+const fetcher = async (url: string) => {
+  const response = await getRequest(url)
+  console.log("Budget API Response:", response) // Debug log
+  return response
+}
+
+export function BudgetList({ onEdit, onDelete, selectedMonth, onMonthChange }: BudgetListProps) {
+  // Fetch budgets with proper configuration
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse>(
     ApiRouteConstants.GET_BUDGET,
-    async (url) => {
-      const response = await getRequest(url)
-      return response.body as Budget[]
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      refreshInterval: 0,
+      dedupingInterval: 2000,
     }
+  )
+
+  // Fetch transactions for spending calculation
+  const { data: transactionsData } = useSWR<{ success: boolean; message: string; body: Transaction[] }>(
+    ApiRouteConstants.GET_TRANSACTION,
+    fetcher
   )
 
   const { trigger: deleteBudget, isMutating: isDeleting } = useSWRMutation(
     ApiRouteConstants.DELETE_BUDGET,
-    async (url, { arg }: { arg: string }) => {
+    async (url: string, { arg }: { arg: string }) => {
       return deleteRequest(`${url}?${Constants.ID}=${arg}`)
     }
   )
@@ -40,7 +63,6 @@ export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) 
     try {
       await deleteBudget(id)
       toast.success("Budget deleted successfully")
-      // Invalidate and revalidate budgets cache
       await mutate()
       onDelete(id)
     } catch (error) {
@@ -59,6 +81,7 @@ export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) 
   }
 
   if (error) {
+    console.error("Budget fetch error:", error) // Debug log
     return (
       <Card className="p-6 text-center text-red-500">
         Error loading budgets. Please try again.
@@ -66,22 +89,42 @@ export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) 
     )
   }
 
-  const budgets = data || []
+  // Debug logs
+  console.log("Raw data:", data)
+  console.log("Selected month:", selectedMonth)
 
-  if (budgets.length === 0) {
-    return (
-      <Card className="p-6 text-center text-muted-foreground">
-        No budgets set for this month. Use the form to set your first budget.
-      </Card>
-    )
-  }
+  // Ensure budgets is always an array and filter by selected month
+  const budgets = data?.body || []
+  console.log("All budgets:", budgets) // Debug log
+
+  const filteredBudgets = budgets.filter((budget) => {
+    console.log("Budget month:", budget.month, "Selected month:", selectedMonth) // Debug log
+    return budget.month === selectedMonth
+  })
+  console.log("Filtered budgets:", filteredBudgets) // Debug log
 
   // Calculate spending by category
   const categorySpending: Record<string, number> = {}
-  transactions.forEach((transaction) => {
-    const category = transaction.category
-    categorySpending[category] = (categorySpending[category] || 0) + transaction.amount
-  })
+  const transactions = transactionsData?.body || []
+  
+  // Filter transactions for the selected month and calculate spending
+  transactions
+    .filter(t => {
+      const transactionMonth = new Date(t.date).toISOString().substring(0, 7)
+      return transactionMonth === selectedMonth
+    })
+    .forEach((transaction) => {
+      const category = transaction.category || "Other"
+      categorySpending[category] = (categorySpending[category] || 0) + transaction.amount
+    })
+
+  if (filteredBudgets.length === 0) {
+    return (
+      <Card className="p-6 text-center text-muted-foreground">
+        No budgets set for {selectedMonth}. Use the form to set your first budget.
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -98,7 +141,7 @@ export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {budgets.map((budget) => {
+            {filteredBudgets.map((budget) => {
               const spent = categorySpending[budget.category] || 0
               const remaining = Math.max(budget.amount - spent, 0)
               const progress = budget.amount > 0 ? Math.min((spent / budget.amount) * 100, 100) : 0
