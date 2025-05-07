@@ -17,7 +17,7 @@ interface BudgetFormProps {
   onSubmit: (budget: Budget) => void
   initialData?: Budget | null
   onCancel: () => void
-  categories: string[]
+  categories: readonly string[]
   selectedMonth: string
   onMonthChange: (month: string) => void
 }
