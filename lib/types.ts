@@ -7,7 +7,7 @@ export interface Transaction {
 }
 
 export interface Budget {
-  id?: string
+  _id?: string
   category: string
   amount: number
   month: string // Format: YYYY-MM
