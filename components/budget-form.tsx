@@ -1,17 +1,20 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import type { Budget } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MonthPicker } from "@/components/month-picker"
+import { ApiRouteConstants, BudgetConstants } from "@/helpers/string_const"
+import { useSWRConfig } from "swr"
+import { postRequest } from "@/helpers/ui/handlers"
+import useSWRMutation from "swr/mutation"
 
 interface BudgetFormProps {
   onSubmit: (budget: Budget) => void
@@ -34,6 +37,14 @@ export function BudgetForm({
   const [category, setCategory] = useState<string>(categories[0])
   const [month, setMonth] = useState(selectedMonth)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const { mutate } = useSWRConfig()
+
+  const { trigger, isMutating } = useSWRMutation(
+    ApiRouteConstants.ADD_BUDGET,
+    async (url, { arg }: { arg: any }) => {
+      return postRequest(url, arg)
+    }
+  )
 
   useEffect(() => {
     if (initialData) {
@@ -71,24 +82,35 @@ export function BudgetForm({
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validate()) return
 
-    const budget: Budget = {
-      id: initialData?.id || "",
-      amount: Number(amount),
-      category,
-      month,
-    }
+    try {
+      const data = {
+        [BudgetConstants.AMOUNT]: Number(amount),
+        [BudgetConstants.CATEGORY]: category,
+        [BudgetConstants.MONTH]: month,
+      }
 
-    onSubmit(budget)
+      await trigger(data)
 
-    if (!initialData) {
-      // Clear form if adding new budget
-      setAmount("")
-      // Keep the category and month selected for convenience
+      onSubmit({
+        id: initialData?.id || "",
+        amount: Number(amount),
+        category,
+        month,
+      })
+
+      // Invalidate and revalidate budgets cache
+      await mutate(ApiRouteConstants.GET_BUDGET)
+
+      if (!initialData) {
+        setAmount("")
+      }
+    } catch (error) {
+      console.error("Error adding budget:", error)
     }
   }
 
@@ -153,11 +175,18 @@ export function BudgetForm({
           </div>
 
           <div className="flex gap-2">
-            <Button type="submit" className="flex-1">
-              {initialData ? "Update" : "Set"} Budget
+            <Button type="submit" className="flex-1" disabled={isMutating}>
+              {isMutating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {initialData ? "Updating..." : "Adding..."}
+                </>
+              ) : (
+                `${initialData ? "Update" : "Set"} Budget`
+              )}
             </Button>
             {initialData && (
-              <Button type="button" variant="outline" onClick={onCancel}>
+              <Button type="button" variant="outline" onClick={onCancel} disabled={isMutating}>
                 Cancel
               </Button>
             )}

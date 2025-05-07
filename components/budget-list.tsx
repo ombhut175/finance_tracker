@@ -6,17 +6,46 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2 } from "lucide-react"
+import { Edit, Trash2, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { ApiRouteConstants } from "@/helpers/string_const"
+import { getRequest } from "@/helpers/ui/handlers"
+import useSWR from "swr"
 
 interface BudgetListProps {
-  budgets: Budget[]
   transactions: Transaction[]
   onEdit: (budget: Budget) => void
   onDelete: (id: string) => void
 }
 
-export function BudgetList({ budgets, transactions, onEdit, onDelete }: BudgetListProps) {
+export function BudgetList({ transactions, onEdit, onDelete }: BudgetListProps) {
+  const { data, error, isLoading } = useSWR(
+    ApiRouteConstants.GET_BUDGET,
+    async (url) => {
+      const response = await getRequest(url)
+      return response.body as Budget[]
+    }
+  )
+
+  if (isLoading) {
+    return (
+      <Card className="p-6 text-center">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+        <p className="text-muted-foreground">Loading budgets...</p>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="p-6 text-center text-red-500">
+        Error loading budgets. Please try again.
+      </Card>
+    )
+  }
+
+  const budgets = data || []
+
   if (budgets.length === 0) {
     return (
       <Card className="p-6 text-center text-muted-foreground">
@@ -87,7 +116,7 @@ export function BudgetList({ budgets, transactions, onEdit, onDelete }: BudgetLi
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => onDelete(budget.id)}
+                        onClick={() => budget.id && onDelete(budget.id)}
                         aria-label="Delete budget"
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
