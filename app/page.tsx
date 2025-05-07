@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CATEGORIES, type Transaction, type Budget } from "@/lib/types"
 import { generateInsights } from "@/lib/insights"
 import { Loader2, LineChart, DollarSign, BarChart4 } from 'lucide-react'
+// import { ToastDemo } from "@/components/toast-demo" // Commented out after testing
+import { toastSuccess } from "@/lib/toast"
 
 export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -176,6 +178,11 @@ export default function Home() {
   return (
     <main className="container mx-auto p-4 max-w-6xl">
       <h1 className="text-3xl font-bold mb-8 text-center">Personal Finance Visualizer</h1>
+
+      {/* Toast Demo component removed after testing */}
+      {/* <div className="mb-8 p-4 border rounded-lg bg-card">
+        <ToastDemo />
+      </div> */}
 
       <DashboardSummary
         selectedMonth={selectedMonth}

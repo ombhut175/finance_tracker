@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { MonthPicker } from "@/components/month-picker"
 import type { Budget } from "@/lib/types"
-import { postRequest, putRequest } from "@/helpers/ui/handlers"
+import { handleError, postRequest, putRequest } from "@/helpers/ui/handlers"
 import { ApiRouteConstants } from "@/helpers/string_const"
 
 interface BudgetFormProps {
@@ -85,6 +85,7 @@ export function BudgetForm({
       }
     } catch (error) {
       console.error("Error submitting budget:", error)
+      handleError(error);
     } finally {
       setIsMutating(false)
     }
